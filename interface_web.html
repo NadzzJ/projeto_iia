@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detetor de Alergéneos e Glúten</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --amber: #c97a30;
+    --amber-bg: #fef3e8;
+    --cream: #faf7f0;
+    --brown: #3d2b1a;
+    --muted: #8a6a4a;
+    --border: #e0c8a0;
+    --white: #fffdf8;
+    --green: #3a7a50;
+    --green-bg: #eaf4ee;
+    --red: #c0392b;
+    --red-bg: #fdecea;
+    --shadow: 0 2px 16px rgba(61,43,26,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; background: var(--cream); color: var(--brown); min-height: 100vh; }
+
+  .header { position: relative; height: 220px; overflow: hidden; }
+  .header img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
+  .header-text {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(61,43,26,0.1) 0%, rgba(61,43,26,0.75) 100%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end;
+    padding: 20px; text-align: center;
+  }
+  .header-text h1 { font-size: 1.55rem; font-weight: 900; color: #fffdf8; line-height: 1.25; }
+  .header-text p  { font-size: 0.82rem; font-weight: 600; color: #f0c080; margin-top: 5px; }
+
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; }
+
+  .card { background: var(--white); border-radius: 16px; padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); border: 1.5px solid var(--border); }
+  .card-title { font-size: 0.95rem; font-weight: 800; color: var(--brown); margin-bottom: 14px; }
+
+  .upload-zone { border: 2.5px dashed var(--border); border-radius: 12px; padding: 24px 16px; text-align: center; cursor: pointer; position: relative; background: var(--cream); transition: all 0.2s; }
+  .upload-zone:hover { border-color: var(--amber); background: var(--amber-bg); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-zone .icon { font-size: 36px; display: block; margin-bottom: 6px; }
+  .upload-zone strong { color: var(--amber); font-size: 0.95rem; display: block; }
+  .upload-zone small { color: var(--muted); font-size: 0.75rem; }
+
+  #preview-wrap { display: none; margin-top: 12px; position: relative; }
+  #preview-img { width: 100%; max-height: 170px; object-fit: contain; border-radius: 8px; border: 1.5px solid var(--border); }
+  #remove-img { position: absolute; top: 5px; right: 5px; background: var(--red); color: #fff; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 0.85rem; cursor: pointer; font-weight: 900; }
+
+  .ou { display: flex; align-items: center; gap: 10px; margin: 12px 0; color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+  .ou::before, .ou::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; font-family: 'Nunito', sans-serif; font-size: 0.88rem; font-weight: 600; resize: vertical; min-height: 85px; color: var(--brown); background: var(--cream); outline: none; }
+  textarea:focus { border-color: var(--amber); }
+  textarea::placeholder { color: #c0a080; }
+
+  #btn-analyze { width: 100%; background: var(--amber); color: #fff; border: none; border-radius: 12px; padding: 16px; font-family: 'Nunito', sans-serif; font-size: 1rem; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(201,122,48,0.35); margin-bottom: 20px; transition: all 0.2s; }
+  #btn-analyze:hover { background: #b06820; }
+  #btn-analyze:disabled { background: #c9a880; cursor: not-allowed; box-shadow: none; }
+
+  #loading { display: none; text-align: center; padding: 28px; background: var(--white); border-radius: 16px; box-shadow: var(--shadow); border: 1.5px solid var(--border); margin-bottom: 14px; }
+  .spinner { width: 46px; height: 46px; border: 5px solid var(--amber-bg); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p { font-weight: 800; color: var(--brown); }
+  #loading small { color: var(--muted); font-size: 0.8rem; }
+
+  #results { display: none; }
+
+  .verdict { border-radius: 12px; padding: 15px 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+  .verdict.safe   { background: var(--green-bg); border: 2px solid #a0d4b0; }
+  .verdict.warn   { background: var(--amber-bg); border: 2px solid #f5c890; }
+  .verdict.danger { background: var(--red-bg);   border: 2px solid #f0b5b0; }
+  .verdict .icon  { font-size: 2rem; flex-shrink: 0; }
+  .verdict strong { display: block; font-size: 0.95rem; font-weight: 900; }
+  .verdict.safe   strong { color: var(--green); }
+  .verdict.warn   strong { color: var(--amber); }
+  .verdict.danger strong { color: var(--red); }
+  .verdict span   { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+  .pill.safe   { background: var(--green-bg); color: var(--green); }
+  .pill.warn   { background: var(--amber-bg); color: var(--amber); }
+  .pill.danger { background: var(--red-bg);   color: var(--red); }
+  .pill.neutral{ background: #f0e8d8;          color: var(--muted); }
+
+  .alerg-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .alerg-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .alerg-row .em { font-size: 1.3rem; flex-shrink: 0; }
+  .alerg-row strong { font-size: 0.88rem; font-weight: 800; display: block; }
+  .alerg-row small  { font-size: 0.76rem; color: var(--muted); font-weight: 600; }
+
+  .notes { background: #fdf0d8; border: 1.5px solid #e0c080; border-radius: 8px; padding: 12px; font-size: 0.82rem; font-weight: 600; color: var(--brown); line-height: 1.6; }
+
+  .disclaimer { font-size: 0.72rem; color: var(--muted); text-align: center; margin-top: 18px; line-height: 1.5; font-weight: 600; }
+
+  #btn-reset { display: block; width: 100%; background: transparent; border: 2px solid var(--border); border-radius: 10px; padding: 12px; font-family: 'Nunito', sans-serif; font-size: 0.9rem; font-weight: 800; color: var(--muted); cursor: pointer; margin-top: 10px; transition: all 0.2s; }
+  #btn-reset:hover { border-color: var(--amber); color: var(--amber); }
+
+  .error { background: var(--red-bg); border: 1.5px solid #f0b5b0; border-radius: 10px; padding: 14px; color: var(--red); font-weight: 700; font-size: 0.86rem; text-align: center; }
+  .legend { margin-top: 8px; font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="App_image.jpg" alt="Alimentos com alergéneos">
+  <div class="header-text">
+    <h1>🌾 Detetor de Alergéneos<br>e Glúten</h1>
+    <p>Descobre o que há nos teus alimentos — simples e rápido</p>
+  </div>
+</div>
+
+<main>
+
+  <div class="card" id="input-card">
+    <div class="card-title">📋 Adiciona a lista de ingredientes</div>
+
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="file-input" accept="image/*" capture="environment">
+      <span class="icon">📷</span>
+      <strong>Tirar foto ou escolher imagem</strong>
+      <small>Aponta a câmara para o rótulo do produto</small>
+    </div>
+
+    <div id="preview-wrap">
+      <img id="preview-img" src="" alt="Pré-visualização">
+      <button id="remove-img">✕</button>
+    </div>
+
+    <div class="ou">ou escreve aqui</div>
+
+    <textarea id="text-input" placeholder="Ex: farinha de trigo, açúcar, sal, leite em pó, lecitina de soja, fermento..." rows="4"></textarea>
+  </div>
+
+  <button id="btn-analyze">🔍 Analisar Ingredientes</button>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>A analisar ingredientes...</p>
+    <small>A verificar alergéneos e glúten. Aguarda um momento.</small>
+  </div>
+
+  <div id="results">
+    <div id="verdict-box"></div>
+    <div id="gluten-section"></div>
+    <div id="allergen-section"></div>
+    <div id="notes-section"></div>
+    <p class="disclaimer">⚕️ Análise baseada nas diretrizes da Associação Portuguesa de Celíacos e Tabela de Composição de Alimentos (PortFIR/INSA). Não substitui aconselhamento médico ou nutricional.</p>
+    <button id="btn-reset">🔄 Analisar outro produto</button>
+  </div>
+
+</main>
+
+<script>
+let imgB64 = null;
+let tipoMedia = 'image/jpeg';
+
+const fileInput  = document.getElementById('file-input');
+const uploadZone = document.getElementById('upload-zone');
+const prevWrap   = document.getElementById('preview-wrap');
+const prevImg    = document.getElementById('preview-img');
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  tipoMedia = file.type || 'image/jpeg';
+  const r = new FileReader();
+  r.onload = ev => {
+    imgB64 = ev.target.result.split(',')[1];
+    prevImg.src = ev.target.result;
+    prevWrap.style.display = 'block';
+    uploadZone.style.display = 'none';
+  };
+  r.readAsDataURL(file);
+});
+
+document.getElementById('remove-img').addEventListener('click', () => {
+  imgB64 = null; fileInput.value = '';
+  prevWrap.style.display = 'none';
+  uploadZone.style.display = 'block';
+});
+
+document.getElementById('btn-analyze').addEventListener('click', analisar);
+document.getElementById('btn-reset').addEventListener('click', reset);
+
+async function analisar() {
+  const texto = document.getElementById('text-input').value.trim();
+  if (!imgB64 && !texto) {
+    alert('Adiciona uma foto ou escreve os ingredientes.');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // Envia para o servidor Flask em vez de chamar a API diretamente
+    const res = await fetch('/analisar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        texto: texto,
+        imagem_base64: imgB64,
+        tipo_media: tipoMedia
+      })
+    });
+
+    const d = await res.json();
+
+    if (d.erro) throw new Error(d.erro);
+
+    mostrarResultados(d);
+
+  } catch (err) {
+    setLoading(false);
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('verdict-box').innerHTML =
+      '<div class="error">⚠️ Erro ao analisar. Tenta novamente.<br><small>' + err.message + '</small></div>';
+    ['gluten-section','allergen-section','notes-section'].forEach(id =>
+      document.getElementById(id).innerHTML = '');
+  }
+}
+
+function mostrarResultados(d) {
+  setLoading(false);
+  document.getElementById('input-card').style.display = 'none';
+  document.getElementById('btn-analyze').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+
+  const cls  = d.gluten_verdict === 'SEGURO' ? 'safe' : d.gluten_verdict === 'RISCO' ? 'warn' : 'danger';
+  const ico  = d.gluten_verdict === 'SEGURO' ? '✅' : d.gluten_verdict === 'RISCO' ? '⚠️' : '❌';
+  const lbl  = d.gluten_verdict === 'SEGURO' ? 'Sem Glúten Detetado'
+             : d.gluten_verdict === 'RISCO'  ? 'Risco de Glúten' : 'Contém Glúten';
+  const sub  = d.gluten_verdict === 'SEGURO' ? 'Não foram encontrados ingredientes com glúten.'
+             : d.gluten_verdict === 'RISCO'  ? 'Alguns ingredientes podem conter glúten. Verifica com o fabricante.'
+             : 'Este produto contém glúten. Não indicado para celíacos.';
+
+  document.getElementById('verdict-box').innerHTML =
+    '<div class="verdict ' + cls + '"><div class="icon">' + ico + '</div>' +
+    '<div><strong>' + lbl + '</strong><span>' + sub + '</span></div></div>';
+
+  if (d.ingredients && d.ingredients.length) {
+    const pills = d.ingredients.map(i => {
+      const c = i.status === 'SEGURO' ? 'safe' : i.status === 'RISCO' ? 'warn' : i.status === 'CONTÉM' ? 'danger' : 'neutral';
+      const e = i.status === 'SEGURO' ? '✅' : i.status === 'RISCO' ? '⚠️' : i.status === 'CONTÉM' ? '❌' : '•';
+      return '<span class="pill ' + c + '">' + e + ' ' + i.name + '</span>';
+    }).join('');
+    document.getElementById('gluten-section').innerHTML =
+      '<div class="card"><div class="card-title">🌾 Ingredientes Analisados</div>' +
+      '<div class="pills">' + pills + '</div>' +
+      '<p class="legend">✅ Sem glúten &nbsp;⚠️ Risco &nbsp;❌ Contém glúten &nbsp;• Neutro</p></div>';
+  }
+
+  if (d.allergens && d.allergens.length) {
+    const rows = d.allergens.map(a =>
+      '<div class="alerg-row"><div class="em">' + (a.icon || '⚠️') + '</div>' +
+      '<div><strong>' + a.name + '</strong><small>Em: ' + a.source + '</small></div></div>'
+    ).join('');
+    document.getElementById('allergen-section').innerHTML =
+      '<div class="card"><div class="card-title">⚠️ Alergéneos Detetados (' + d.allergens.length + ')</div>' + rows + '</div>';
+  } else {
+    document.getElementById('allergen-section').innerHTML =
+      '<div class="card"><div class="card-title">⚠️ Alergéneos</div>' +
+      '<div class="alerg-row"><div class="em">✅</div>' +
+      '<div><strong>Nenhum alergéneo major detetado</strong>' +
+      '<small>Baseado nos ingredientes fornecidos</small></div></div></div>';
+  }
+
+  if (d.notes) {
+    document.getElementById('notes-section').innerHTML =
+      '<div class="card"><div class="card-title">💡 Notas Importantes</div>' +
+      '<div class="notes">' + d.notes + '</div></div>';
+  }
+}
+
+function setLoading(on) {
+  document.getElementById('loading').style.display = on ? 'block' : 'none';
+  document.getElementById('btn-analyze').disabled = on;
+  if (on) document.getElementById('results').style.display = 'none';
+}
+
+function reset() {
+  document.getElementById('input-card').style.display = 'block';
+  document.getElementById('btn-analyze').style.display = 'flex';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('text-input').value = '';
+  imgB64 = null; fileInput.value = '';
+  prevWrap.style.display = 'none';
+  uploadZone.style.display = 'block';
+  ['verdict-box','gluten-section','allergen-section','notes-section'].forEach(id =>
+    document.getElementById(id).innerHTML = '');
+}
+</script>
+</body>
+</html>
